@@ -1,6 +1,3 @@
-//camera integrated
-
-
 import tkinter as tk
 from tkinter import messagebox
 import os
@@ -9,18 +6,15 @@ import serial
 import cv2
 from PIL import Image, ImageTk
 
+#UI FUNCTION CODE
 
-
-
-
-# Function to create a label with a larger font        create_label
-def create_label(root, text, row, column, padx=10, pady=10, sticky='w', font_size=16, columnspan=1):
+def create_label(root, text, row, column, padx=10, pady=10, sticky='w', font_size=None, columnspan=1):
     tk.Label(root, text=text, font=("Helvetica", font_size)).grid(row=row, column=column, padx=padx, pady=pady,
                                                                   sticky=sticky, columnspan=columnspan)
 
 
 # Function to create an entry with a larger font
-def create_entry(root, row, column, variable=None, state='normal', padx=10, pady=10, columnspan=1, font_size=16,
+def create_entry(root, row, column, variable=None, state='normal', padx=None, pady=None, columnspan=1, font_size=16,
                  width=15):
     entry = tk.Entry(root, textvariable=variable, state=state, font=("Helvetica", font_size), width=width)
     entry.grid(row=row, column=column, padx=padx, pady=pady, sticky='w', columnspan=columnspan)
@@ -34,40 +28,40 @@ def create_button(root, text, command, row, column, columnspan=1, padx=10, pady=
                                                                                     pady=pady)
 
 
-# Function to set up the UI with larger sizes
+# UI CODE
+
+
 def setup_ui(root):
     labels = ["S.no", "Type of Waste", "Current Weight", "Cum. W"]
     Vehicle_number = tk.StringVar(value=" TN32 AK1314")
 
     for i, label in enumerate(labels):
-        create_label(root, label, 0, i, font_size=16, padx=20, pady=10)
+        create_label(root, label, 0, i, font_size=16, padx=10, pady=10)
 
     for i in range(1, 10):
         create_label(root, f"{i}.", i, 0, sticky='e', font_size=17, padx=20, pady=5)
         waste_type_entry_widgets.append(create_entry(root, i, 1, font_size=17))
-        weight_entry = create_entry(root, i, 2, font_size=17, width=9)
+        weight_entry = create_entry(root, i, 2, font_size=17, width=8, padx=20, pady=5)
         weight_entry.bind('<KeyRelease>', auto_update_weights)
         weight_entry_widgets.append(weight_entry)
 
-
-
     create_label(root, "Incoming Weight", 12, 1, sticky='ew', font_size=18, pady=10)
-    entry_widget = create_entry(root, 11, 1, variable=serial_data_var, state='readonly', columnspan=1, font_size=19,
-                                pady=5)
+    entry_widget = create_entry(root, 11, 1, variable=serial_data_var, state='readonly', columnspan=1, font_size=19,width=7,
+                                pady=5,padx=45)
 
-    create_label(root, "Vehicle No", 0, 5, sticky='ew', font_size=18, pady=10)
-    entry_widget = create_entry(root, 1, 5, variable=Vehicle_number, columnspan=2, font_size=16, padx=2, pady=5)
+    create_label(root, "Vehicle No", 0, 5, sticky='ew', font_size=16, pady=10)
+    entry_widget = create_entry(root, 1, 5, variable=Vehicle_number, columnspan=1, font_size=16, padx=45, pady=15)
 
-    create_label(root, "RFID NO", 5, 5, sticky='ew', font_size=18, pady=10)
-    entry_widget = create_entry(root, 6, 5, variable=Vehicle_number, columnspan=2, font_size=16, padx=2, pady=5)
+
+
+
+
+
 
     # Other UI elements from your original code
-    create_entry(root, 2, 3, cumulative_weights_vars[0], state='readonly', font_size=18, width=10, padx=5, pady=5)
-    create_entry(root, 5, 3, cumulative_weights_vars[1], state='readonly', font_size=18, width=10, padx=5, pady=5)
-    create_entry(root, 8, 3, cumulative_weights_vars[2], state='readonly', font_size=18, width=10, padx=5, pady=5)
-
-    create_label(root, "Net Weight", 12, 3, sticky='ew', font_size=18, pady=10)
-    create_entry(root, 11, 3, net_weight_var, state='readonly', font_size=20, pady=5)
+    create_entry(root, 2, 3, cumulative_weights_vars[0], state='readonly', font_size=18, width=6, padx=5, pady=5)
+    create_entry(root, 5, 3, cumulative_weights_vars[1], state='readonly', font_size=18, width=6, padx=5, pady=5)
+    create_entry(root, 8, 3, cumulative_weights_vars[2], state='readonly', font_size=18, width=6, padx=5, pady=5)
 
     webcam_label = tk.Label(root)
     create_label(root, "Cam Out", 11, 5, sticky='ew', font_size=18, pady=10)
@@ -84,6 +78,137 @@ def setup_ui(root):
     for i in range(13):
         root.grid_rowconfigure(i, weight=1)
         root.grid_columnconfigure(i, weight=1)
+
+
+#GET FILEPATH CODE
+
+def get_file_path():
+    folder_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'garbage_project')
+    os.makedirs(folder_path, exist_ok=True)
+
+    type_of_waste_file_path = os.path.join(folder_path, 'Type_of_waste.txt')
+    com_ports_file_path = os.path.join(folder_path, 'com_ports.txt')
+
+    if not os.path.exists(type_of_waste_file_path):
+        with open(type_of_waste_file_path, 'w') as file:
+            file.write('')
+
+    if not os.path.exists(com_ports_file_path):
+        with open(com_ports_file_path, 'w') as file:
+            # Write specific content to the "com_ports.txt" file
+            file.writelines(["read_from_serial_port - \n", "read_from_keypad      - \n"])
+
+    return type_of_waste_file_path, com_ports_file_path
+
+#GET COM PORTS FROM THE FILE CODE
+def get_com_ports():
+    _, com_ports_file_path = get_file_path()
+    com_ports = {}
+    try:
+        with open(com_ports_file_path, 'r') as file:
+            for line in file:
+                if '-' in line:
+                    function_name, com_port = line.split('-')
+                    com_ports[function_name.strip()] = com_port.strip()
+    except FileNotFoundError:
+        print(f"File '{com_ports_file_path}' not found. Please create the file with COM port settings.")
+    return com_ports
+
+
+
+
+def read_waste_types_from_file():
+    type_of_waste_file_path, _ = get_file_path()
+    try:
+        with open(type_of_waste_file_path, 'r', encoding='utf-8') as file:
+            return file.read().splitlines()
+    except FileNotFoundError:
+        print(f"File '{type_of_waste_file_path}' not found. Please create the file with waste types.")
+        return []
+
+
+def populate_waste_type_entries(waste_types):
+    for i, waste_type in enumerate(waste_types):
+        if i < len(waste_type_entry_widgets):
+            waste_type_entry_widgets[i].delete(0, tk.END)
+            waste_type_entry_widgets[i].insert(0, waste_type)
+
+
+
+#RANDOM WEIGHT READING CODE
+
+def read_from_serial_port(baud_rate=9600):
+    com_ports = get_com_ports()
+    com_port = com_ports.get('read_from_serial_port', 'COM9')  # Default to 'COM9' if not found
+
+    with serial.Serial(com_port, baud_rate, timeout=4) as ser:
+        print(f"Reading data from {com_port} at {baud_rate} baud...")
+        while True:
+            data = ser.readline().decode('utf-8').strip()
+            serial_data_var.set(data)
+
+
+
+#KEYPAD READING CODE
+
+def read_from_keypad(baud_rate=9600):
+    global popup_window
+    com_ports = get_com_ports()
+    com_port = com_ports.get('read_from_keypad', 'COM6')  # Default to 'COM6' if not found
+
+    with serial.Serial(com_port, baud_rate, timeout=4) as ser:
+        print(f"Reading keypad input from {com_port} at {baud_rate} baud...")
+        while True:
+            key_input = ser.readline().decode('utf-8').strip()
+            if key_input.isdigit():
+                key_number = int(key_input)
+                if popup_window:  # If the popup is active
+                    if key_number == 10:
+                        reset_and_close_popup()
+                    elif key_number == 6:
+                        cancel_popup()
+                    elif key_number == 9:
+                        export_to_text()  # Call the export function
+                        reset_and_close_popup()
+                else:
+                    if 1 <= key_number <= 9:
+                        current_weight = serial_data_var.get()
+                        update_current_weight(key_number, current_weight)
+                    elif key_number == 10:
+                        show_popup()
+
+
+
+
+
+
+
+# RFID CODE
+def parse_rfid_data(raw_data):
+    hex_data = [f"{byte:02X}" for byte in raw_data]
+    hex_str = ''.join(hex_data)
+    return hex_str
+
+def run_rfid_reader(device_path='COM1', baud_rate=9600):
+    global rfid_data_var
+    encountered_tags = set()
+    last_tag_name = None
+    try:
+        ser = serial.Serial(device_path, baud_rate)
+        while True:
+            raw_data = ser.read(18)
+            tag_name_data = raw_data[4:16]
+            current_tag_name = parse_rfid_data(tag_name_data)
+            if current_tag_name != last_tag_name:
+                if current_tag_name not in encountered_tags:
+                    encountered_tags.add(current_tag_name)
+                    rfid_data_var.set(current_tag_name)  # Update the RFID StringVar
+                last_tag_name = current_tag_name
+    except serial.SerialException as e:
+        print(f"An error occurred: {e}")
+    finally:
+        if 'ser' in locals() and ser.is_open:
+            ser.close()
 
 
 # Function to update the webcam feed
@@ -108,42 +233,18 @@ def update_webcam_feed(label):
     # Repeat this function after 10ms (for a real-time update without freezing the GUI)
     label.after(10, update_webcam_feed, label)
 
+    create_label(root, "Net Weight", 12, 3, sticky='ew', font_size=18, pady=10,padx=0)
+    create_entry(root, 11, 3, net_weight_var, state='readonly', font_size=20, pady=5,width=7)
 
-def parse_rfid_data(raw_data):
-    hex_data = [f"{byte:02X}" for byte in raw_data]
-    hex_str = ''.join(hex_data)
-    return hex_str
+    # Set column weights and row weights for proper alignment and spacing
+    for i in range(13):
+        root.grid_rowconfigure(i, weight=1)
+        root.grid_columnconfigure(i, weight=1)
 
-def run_rfid_reader(device_path='COM1', baud_rate=9600):
-    encountered_tags = set()
-    tag_printed = False
-    current_tag_name = None
 
-    try:
-        ser = serial.Serial(device_path, baud_rate)
 
-        while True:
-            raw_data = ser.read(18)
-            tag_name_data = raw_data[4:16]
-            new_tag_name = parse_rfid_data(tag_name_data)
 
-            if new_tag_name != current_tag_name:
-                current_tag_name = new_tag_name
-                tag_printed = False
 
-            if not tag_printed and current_tag_name not in encountered_tags:
-                encountered_tags.add(current_tag_name)
-                print(current_tag_name)
-                tag_printed = True
-
-    except serial.SerialException as e:
-        print(f"An error occurred: {e}")
-    except KeyboardInterrupt:
-          print("User interrupted. Exiting.")
-    finally:
-        if 'ser' in locals() and ser.is_open:
-            ser.close()
-            print("Serial port closed.")
 
 def auto_update_weights(event):
     cumulative_weights = [0, 0, 0]
@@ -158,6 +259,9 @@ def auto_update_weights(event):
         cumulative_weights_vars[i].set(f"{weight} kg")
 
     net_weight_var.set(f"{sum(cumulative_weights)} kg")
+
+
+#TEMPEROARY POPUP CODE
 
 def show_temporary_popup(message, duration=2000):
     popup = tk.Toplevel(root)
@@ -180,17 +284,22 @@ def show_temporary_popup(message, duration=2000):
     # Schedule the popup to destroy itself after the duration
     popup.after(duration, popup.destroy)
 
+#EXPORT TO TEXT CODE
+
 def export_to_text():
     folder_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'garbage_project')
     os.makedirs(folder_path, exist_ok=True)
     filename = os.path.join(folder_path, 'weights_data.txt')
 
     try:
-        with open(filename, "w", encoding='utf-8') as file:
+        with open(filename, "a", encoding='utf-8') as file:
             file.write("{:<20} {:<20} \n".format("Type of Waste", "Current Weight"))
             for i in range(9):
-                file.write("{:<20} {:<20} \n".format(waste_type_entry_widgets[i].get(), weight_entry_widgets[i].get()))
-            file.write("{:<20} {:<20}\n".format("Net Weight", net_weight_var.get()))
+                file.write("{:<20} {:<20} \n".format(
+                    waste_type_entry_widgets[i].get(), weight_entry_widgets[i].get()
+                ))
+            file.write("{:<20} {:<20} \n".format("Net Weight", net_weight_var.get()))
+            file.write("{:<20} {:<20} \n".format("RFID", rfid_data_var.get()))
 
         # Show custom success message popup
         show_temporary_popup(f"\U00002713 நன்றி ", 2000)
@@ -200,76 +309,9 @@ def export_to_text():
 
 
 
-def get_file_path():
-    folder_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'garbage_project')
-    os.makedirs(folder_path, exist_ok=True)
-
-    type_of_waste_file_path = os.path.join(folder_path, 'Type_of_waste.txt')
-    com_ports_file_path = os.path.join(folder_path, 'com_ports.txt')
-
-    if not os.path.exists(type_of_waste_file_path):
-        with open(type_of_waste_file_path, 'w') as file:
-            file.write('')
-
-    if not os.path.exists(com_ports_file_path):
-        with open(com_ports_file_path, 'w') as file:
-            # Write specific content to the "com_ports.txt" file
-            file.writelines(["read_from_serial_port - \n", "read_from_keypad      - \n"])
-
-    return type_of_waste_file_path, com_ports_file_path
 
 
-def read_waste_types_from_file():
-    type_of_waste_file_path, _ = get_file_path()
-    try:
-        with open(type_of_waste_file_path, 'r', encoding='utf-8') as file:
-            return file.read().splitlines()
-    except FileNotFoundError:
-        print(f"File '{type_of_waste_file_path}' not found. Please create the file with waste types.")
-        return []
-
-
-def populate_waste_type_entries(waste_types):
-    for i, waste_type in enumerate(waste_types):
-        if i < len(waste_type_entry_widgets):
-            waste_type_entry_widgets[i].delete(0, tk.END)
-            waste_type_entry_widgets[i].insert(0, waste_type)
-
-def read_from_serial_port(baud_rate=9600):
-    com_ports = get_com_ports()
-    com_port = com_ports.get('read_from_serial_port', 'COM13')  # Default to 'COM9' if not found
-
-    with serial.Serial(com_port, baud_rate, timeout=4) as ser:
-        print(f"Reading data from {com_port} at {baud_rate} baud...")
-        while True:
-            data = ser.readline().decode('utf-8').strip()
-            serial_data_var.set(data)
-
-def read_from_keypad(baud_rate=9600):
-    global popup_window
-    com_ports = get_com_ports()
-    com_port = com_ports.get('read_from_keypad', 'COM7')  # Default to 'COM6' if not found
-
-    with serial.Serial(com_port, baud_rate, timeout=4) as ser:
-        print(f"Reading keypad input from {com_port} at {baud_rate} baud...")
-        while True:
-            key_input = ser.readline().decode('utf-8').strip()
-            if key_input.isdigit():
-                key_number = int(key_input)
-                if popup_window:  # If the popup is active
-                    if key_number == 10:
-                        reset_and_close_popup()
-                    elif key_number == 6:
-                        cancel_popup()
-                    elif key_number == 9:
-                        export_to_text()  # Call the export function
-                        reset_and_close_popup()
-                else:
-                    if 1 <= key_number <= 9:
-                        current_weight = serial_data_var.get()
-                        update_current_weight(key_number, current_weight)
-                    elif key_number == 10:
-                        show_popup()
+#RESET ALL VALUES IN UI CODE
 
 def reset_all_values():
     # Reset the Current Weight and Cumulative Weight entries
@@ -282,6 +324,8 @@ def reset_all_values():
         var.set("0 kg")
     net_weight_var.set("0 kg")
 
+    # Reset the RFID input field
+    rfid_data_var.set("")  # Add this line to clear the RFID input field
 
     serial_data_var.set("")
 
@@ -289,25 +333,17 @@ def reset_all_values():
 def update_current_weight(key_number, weight):
     if 0 < key_number <= len(weight_entry_widgets):
         weight_entry = weight_entry_widgets[key_number - 1]
-        print(f"Before updating widget {key_number - 1}: {weight_entry.get()}")  # Debugging line
+
         weight_entry.delete(0, tk.END)  # Clear the existing value
         weight_entry.insert(0, weight)  # Insert the new weight
-        print(f"After updating widget {key_number - 1}: {weight_entry.get()}")  # Debugging line
+
 
 
         auto_update_weights(None)
-def get_com_ports():
-    _, com_ports_file_path = get_file_path()
-    com_ports = {}
-    try:
-        with open(com_ports_file_path, 'r') as file:
-            for line in file:
-                if '-' in line:
-                    function_name, com_port = line.split('-')
-                    com_ports[function_name.strip()] = com_port.strip()
-    except FileNotFoundError:
-        print(f"File '{com_ports_file_path}' not found. Please create the file with COM port settings.")
-    return com_ports
+
+
+
+#POPUP CODE
 
 def show_popup():
     global popup_window
@@ -316,7 +352,7 @@ def show_popup():
 
     popup_window = tk.Toplevel(root)
     popup_window.title("Review and Confirm")
-    popup_window.geometry("580x550")  # Adjust the size of the popup to accommodate the layout
+    popup_window.geometry("550x580")  # Adjust the size of the popup to accommodate the layout
 
     # Scrollable frame inside the popup
     frame = tk.Frame(popup_window)
@@ -342,9 +378,14 @@ def show_popup():
     tk.Label(scrollable_frame, text="Net Weight:", font=("Helvetica", 18, "bold")).grid(row=len(waste_type_entry_widgets), column=0, sticky="w", padx=10, pady=10)
     tk.Label(scrollable_frame, text=f"{net_weight_var.get()}", font=("Helvetica", 18, "bold")).grid(row=len(waste_type_entry_widgets), column=1, sticky="w", padx=10, pady=10)
 
+    tk.Label(scrollable_frame, text="Rfid no:", font=("Helvetica", 18, "bold")).grid(row=len(waste_type_entry_widgets)+1, column=0, sticky="w", padx=10, pady=10)
+    tk.Label(scrollable_frame, text=f"{rfid_data_var.get()}", font=("Helvetica", 18, "bold")).grid(row=len(waste_type_entry_widgets)+1, column=1, sticky="w", padx=10, pady=10)
+
+
+
     frame.pack(fill="both", expand=True)
     canvas.pack(side="left", fill="both", expand=True)
-    scrollbar.pack(side="right", fill="y")
+
 
     # Buttons at the bottom of the popup
     buttons_frame = tk.Frame(popup_window)
@@ -377,9 +418,45 @@ def reset_and_close_popup():
     reset_all_values()
     cancel_popup()
 
+# Function to capture and save an image
+def capture_and_save_image(row_index):
+    ret, frame = vid.read()
+    if ret:
+        # Resize the frame to the desired size
+        frame = cv2.resize(frame, (168, 170))
+
+        # Save the image with a filename based on the row index in the specified folder
+        folder_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'garbage_project')
+        image_filename = os.path.join(folder_path,   f"image_row_{row_index}.png")
+        cv2.imwrite(image_filename, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+        print(f"Image saved: {image_filename}")  # Add this line for debugging
+
+        return image_filename
+    else:
+        print("Failed to capture image")  # Add this line for debugging
+        return None
+
+
+
+# Function to update the webcam feed and capture image when a key is pressed
+def update_webcam_feed_and_capture(event):
+    row_index = int(event.char)
+    if 1 <= row_index <= 9:
+        # Capture and save image
+        image_filename = capture_and_save_image(row_index)
+
+        # Update the RFID and weight values for the corresponding row
+        current_rfid_value = rfid_data_var.get()
+        current_weight_value = weight_entry_widgets[row_index - 1].get()
+
+        # Display the captured image filename, RFID, and weight in the console
+        print(f"Image: {image_filename}, RFID: {current_rfid_value}, Weight: {current_weight_value}")
+
+
 # Main function
 # Main function
-if _name_ == "_main_":
+if __name__ == "__main__":
     root = tk.Tk()
     root.title("RTS Garbage UI ")
 
@@ -387,8 +464,7 @@ if _name_ == "_main_":
     root.configure(bg='light green')
     # Global variable for the popup reference
     popup_window = None
-    # Initialize global variables
-
+    rfid_data_var = tk.StringVar()
     serial_data_var = tk.StringVar(value="")
     cumulative_weights_vars = [tk.StringVar(value="0 kg") for _ in range(3)]
     net_weight_var = tk.StringVar(value="0 kg")
@@ -398,10 +474,6 @@ if _name_ == "_main_":
     # Set up the UI
     setup_ui(root)
 
-
-    # Release the video capture on exit
-
-
     # Populate waste type entries
     waste_types = read_waste_types_from_file()
     populate_waste_type_entries(waste_types)
@@ -409,5 +481,20 @@ if _name_ == "_main_":
     threading.Thread(target=read_from_serial_port, args=(9600,), daemon=True).start()
     threading.Thread(target=read_from_keypad, args=(9600,), daemon=True).start()
     type_of_waste_file_path, com_ports_file_path = get_file_path()
+
+
+
+    # RFID display region in the GUI
+    tk.Label(root, text="RFID Tag", font=("Helvetica", 16)).grid(row=3, column=5, padx=10, pady=10)
+    tk.Entry(root, textvariable=rfid_data_var, font=("Helvetica", 14), state='readonly', width=25).grid(row=4, column=5,
+                                                                                                        padx=1, pady=1)
+
+    for i in range(1, 10):
+        root.bind(str(i), update_webcam_feed_and_capture)
+
+
+    # Start the RFID reader thread
+    threading.Thread(target=run_rfid_reader, args=('COM1', 9600), daemon=True).start()
+
     root.mainloop()
     vid.release()
